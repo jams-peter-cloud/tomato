@@ -1,0 +1,7 @@
+#tomato-2.0
+main {
+    num n = 100.5;
+    out "Hello from TomatoCore 2.0!";
+    out n;
+    ret 0;
+}

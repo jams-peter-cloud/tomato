@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TomatoStudio Pro - Professional TomatoCore IDE</title>
+    <!-- 引入 Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Monaco Editor (CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+        #editor-container { height: calc(100vh - 280px); border: 1px solid #30363d; }
+        .console-box { height: 200px; background: #010409; font-family: 'Fira Code', 'Consolas', monospace; }
+        .sidebar { width: 260px; background: #161b22; border-right: 1px solid #30363d; }
+        .active-tab { border-bottom: 2px solid #58a6ff; color: #f0f6fc; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+    <!-- 顶部导航栏 -->
+    <header class="h-12 bg-[#161b22] border-b border-[#30363d] flex items-center px-4 justify-between">
+        <div class="flex items-center space-x-4">
+            <span class="text-red-500 font-bold text-xl">🍅 TomatoStudio Pro</span>
+            <nav class="flex space-x-4 text-sm font-medium ml-8">
+                <button class="hover:text-white active-tab px-2 py-1">Editor</button>
+                <button class="hover:text-white px-2 py-1" onclick="loadEngine()">Box Engine</button>
+            </nav>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="saveRun()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1.5 px-4 rounded shadow-lg transition duration-200">▶ C++ RUN</button>
+            <button onclick="interpret()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-4 rounded shadow-lg transition duration-200">⚡ NATIVE RUN</button>
+            <button onclick="convert('exp')" class="bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] text-xs font-bold py-1.5 px-4 rounded border border-[#30363d] transition duration-200">RENDER</button>
+            <button onclick="convert('core')" class="bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] text-xs font-bold py-1.5 px-4 rounded border border-[#30363d] transition duration-200">CORE VIEW</button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- 侧边栏：文件浏览器 -->
+        <aside class="sidebar flex flex-col">
+            <div class="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Explorer</div>
+            <div id="file-list" class="flex-1 overflow-y-auto px-2 space-y-1">
+                <!-- 文件项将动态插入 -->
+                <div class="text-sm p-2 hover:bg-[#21262d] rounded cursor-pointer text-blue-400">GameCore.tmc</div>
+            </div>
+        </aside>
+
+        <!-- 主编辑区域 -->
+        <main class="flex-1 flex flex-col bg-[#0d1117]">
+            <div id="editor-container" class="w-full"></div>
+            
+            <!-- 控制台区域 -->
+            <div class="console-box flex flex-col border-t border-[#30363d]">
+                <div class="h-8 bg-[#161b22] flex items-center px-4 border-b border-[#30363d] justify-between">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Output Terminal</span>
+                    <button onclick="clearConsole()" class="text-[10px] text-gray-400 hover:text-white uppercase">Clear</button>
+                </div>
+                <div id="console" class="flex-1 p-3 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap">TomatoStudio Pro v1.0.0 initialized. Ready for coding.</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <footer class="h-6 bg-[#010409] border-t border-[#30363d] flex items-center px-4 text-[10px] text-gray-400">
+        <div class="flex space-x-4">
+            <span id="status-text">● Ready</span>
+            <span>UTF-8</span>
+            <span>TomatoCore 1.0</span>
+        </div>
+    </footer>
+
+    <script>
+        var editor;
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: `#*tomato-1.0.0.lite // 版本声明\n#加载拓展 : <*输入输出流>;\n#<*stdlc> : <*简体中文>\n{\n    申请空间(5); // 申请5KB内存\n}\n\n**main : { // 主程序入口\n    定义十进制数变量 : <n> [2.2]; // 定义精度变量\n    输出 \"Hello, TomatoCore Pro!\"; // 打印内容\n    结束并返回 0; // 退出程序\n}`,
+                language: 'cpp',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                fontSize: 14,
+                fontFamily: "'Fira Code', 'Consolas', monospace",
+                minimap: { enabled: true },
+                scrollbar: { vertical: 'visible', horizontal: 'visible' }
+            });
+        });
+
+        async function saveRun() { // 运行逻辑
+            log("[System] Compiling and Running program via C++...");
+            const res = await fetch('/api/run', {
+                method: 'POST',
+                body: JSON.stringify({ code: editor.getValue(), file: 'GameCore.tmc' })
+            });
+            const d = await res.json();
+            log(d.out);
+            document.getElementById('status-text').innerText = "● " + d.status;
+        }
+
+        async function interpret() { // 解释执行逻辑
+            log("[Engine] Running program via Native Engine...");
+            const res = await fetch('/api/interpret', {
+                method: 'POST',
+                body: JSON.stringify({ code: editor.getValue() })
+            });
+            const d = await res.json();
+            log(d.out);
+            document.getElementById('status-text').innerText = "● " + d.status;
+        }
+
+        async function convert(m) { // 转换查看
+            const res = await fetch('/api/convert', {
+                method: 'POST',
+                body: JSON.stringify({ code: editor.getValue(), mode: m })
+            });
+            const d = await res.json();
+            log(`\n--- ${m.toUpperCase()} VIEW ---\n${d.res}\n--- END VIEW ---`);
+        }
+
+        function loadEngine() { // 加载引擎模板
+            const c = `#*tomato-1.0.0.max // 全能版以支持游戏引擎\n#加载拓展 : <*游戏引擎内核>;\n#<*stdlc> : <*简体中文>\n{\n    申请空间(1024); // 申请1MB空间\n}\n**main : {\n    输出 \"TomatoBox Engine v1.0 Start...\";\n    结束并返回 0;\n}`;
+            editor.setValue(c);
+            log("[Box] Game Engine template loaded.");
+        }
+
+        function log(m) { // 日志输出
+            const con = document.getElementById('console');
+            con.innerText += "\n" + m;
+            con.scrollTop = con.scrollHeight;
+        }
+
+        function clearConsole() { // 清空日志
+            document.getElementById('console').innerText = "[Console Cleared]";
+        }
+
+        // 初始加载文件列表
+        fetch('/api/files').then(r => r.json()).then(d => {
+            const list = document.getElementById('file-list');
+            list.innerHTML = d.files.map(f => `<div class="text-sm p-2 hover:bg-[#21262d] rounded cursor-pointer text-blue-400">${f}</div>`).join('');
+        });
+    </script>
+</body>
+</html>
